@@ -38,6 +38,11 @@ jobs:
           key: ubuntu-3.13
           variant: ${{ steps.ccache.outputs.variant }}
 
+    - name: hotfix
+      run: |
+        mkdir -p build/cache
+        cp -r art/*.zip build/cache
+
     - uses: robotpy/build-actions/install-robotpy-build@v2025
     - uses: robotpy/build-actions/install-build-deps@v2025
     - uses: robotpy/build-actions/build-wheel@v2025
