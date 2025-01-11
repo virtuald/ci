@@ -5,20 +5,45 @@ on:
   pull_request:
   push:
     branches:
-    - main
+    - '*'
     tags:
     - '*'
 
 jobs:
-  ci:
-    uses: robotpy/build-actions/.github/workflows/package-ci.yml@v2025
-    with:
-      artifactory_repo_type: vendor
-      enable_raspbian: false
-    secrets:
-      META_REPO_ACCESS_TOKEN: ${{ secrets.REPO_ACCESS_TOKEN }}
-      RTD_TOKEN: ${{ secrets.RTD_TOKEN }}
-      RTD_WEBHOOK: ${{ secrets.RTD_WEBHOOK }}
-      WPI_ARTIFACTORY_USERNAME: ${{ secrets.WPI_ARTIFACTORY_USERNAME }}
-      WPI_ARTIFACTORY_TOKEN: ${{ secrets.WPI_ARTIFACTORY_TOKEN }}
-      PYPI_API_TOKEN: ${{ secrets.PYPI_PASSWORD }}
+  build:
+    runs-on: ubuntu-22.04
+    
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.13"
+
+    - name: Set ccache variant
+      shell: bash
+      id: ccache
+      run: |
+        #if [[ "${{ runner.os }}" == "Windows" ]]; then
+        #  echo "VARIANT=sccache" >> $GITHUB_OUTPUT
+        #  echo "RPYBUILD_CC_LAUNCHER=sccache" >> $GITHUB_ENV
+        #else
+          echo "VARIANT=ccache" >> $GITHUB_OUTPUT
+          echo "RPYBUILD_CC_LAUNCHER=ccache" >> $GITHUB_ENV
+        #fi
+
+    - uses: robotpy/build-actions/install-robotpy-build@v2025
+    - uses: robotpy/build-actions/install-build-deps@v2025
+    - uses: robotpy/build-actions/build-wheel@v2025
+  
+    - uses: robotpy/build-actions/test-native-wheel@v2025
+
+    - uses: robotpy/build-actions/validate-sphinx@v2025
+      if: |
+        inputs.enable_sphinx_check && inputs.enable_rtd &&
+        matrix.python_version == '3.11' && runner.os == 'Linux' &&
+        github.event_name == 'pull_request'
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: "pypi-${{ runner.os }}-3.13"
+        path: dist
